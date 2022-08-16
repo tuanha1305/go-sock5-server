@@ -5,6 +5,7 @@ type Config struct {
 }
 
 type ProxyConfig struct {
+	Ip       string `mapstructure:"ip"`
 	User     string `mapstructure:"user"`
 	Password string `mapstructure:"password"`
 	Port     int    `mapstructure:"port"`
