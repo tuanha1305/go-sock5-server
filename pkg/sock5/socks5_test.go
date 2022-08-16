@@ -36,7 +36,7 @@ func TestSOCKS5_Connect(t *testing.T) {
 	}()
 	lAddr := l.Addr().(*net.TCPAddr)
 
-	// Create a socks server
+	// Create a socks s5-server
 	creds := StaticCredentials{
 		"foo": "bar",
 	}

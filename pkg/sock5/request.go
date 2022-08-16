@@ -64,7 +64,7 @@ func (a AddrSpec) Address() string {
 	return net.JoinHostPort(a.FQDN, strconv.Itoa(a.Port))
 }
 
-// A Request represents request received by a server
+// A Request represents request received by a s5-server
 type Request struct {
 	// Protocol version
 	Version uint8

@@ -48,7 +48,7 @@ func TestRequest_Connect(t *testing.T) {
 	}()
 	lAddr := l.Addr().(*net.TCPAddr)
 
-	// Make server
+	// Make s5-server
 	s := &Server{config: &Config{
 		Rules:    PermitAll(),
 		Resolver: DNSResolver{},
@@ -123,7 +123,7 @@ func TestRequest_Connect_RuleFail(t *testing.T) {
 	}()
 	lAddr := l.Addr().(*net.TCPAddr)
 
-	// Make server
+	// Make s5-server
 	s := &Server{config: &Config{
 		Rules:    PermitNone(),
 		Resolver: DNSResolver{},
