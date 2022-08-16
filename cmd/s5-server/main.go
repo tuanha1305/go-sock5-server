@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"github.com/spf13/viper"
@@ -75,23 +76,27 @@ func main() {
 	}
 
 	var serverConfig *socks5.Config
-	if conf.ProxyConfig != nil && len(conf.ProxyConfig.User) > 0 && len(conf.ProxyConfig.Password) > 0 {
-		cred := socks5.StaticCredentials{
-			conf.ProxyConfig.User: conf.ProxyConfig.Password,
+	if conf.ProxyConfig != nil {
+		if len(conf.ProxyConfig.User) > 0 && len(conf.ProxyConfig.Password) > 0 {
+			cred := socks5.StaticCredentials{
+				conf.ProxyConfig.User: conf.ProxyConfig.Password,
+			}
+			cator := socks5.UserPassAuthenticator{Credentials: cred}
+			serverConfig = &socks5.Config{AuthMethods: []socks5.Authenticator{cator}}
+		} else {
+			// NO AUTH
+			serverConfig = &socks5.Config{}
 		}
-		cator := socks5.UserPassAuthenticator{Credentials: cred}
-		serverConfig = &socks5.Config{AuthMethods: []socks5.Authenticator{cator}}
-	} else {
-		// NO AUTH
-		serverConfig = &socks5.Config{}
-	}
-	server, err := socks5.New(serverConfig)
-	if err != nil {
-		panic(err)
-	}
+		server, err := socks5.New(serverConfig)
+		if err != nil {
+			panic(err)
+		}
 
-	// Create SOCKS5 proxy on localhost port 8000
-	if err := server.ListenAndServe("tcp", fmt.Sprintf("%s:%d", conf.ProxyConfig.Ip, conf.ProxyConfig.Port)); err != nil {
-		panic(err)
+		// Create SOCKS5 proxy on localhost port 8000
+		if err := server.ListenAndServe("tcp", fmt.Sprintf("%s:%d", conf.ProxyConfig.Ip, conf.ProxyConfig.Port)); err != nil {
+			panic(err)
+		}
 	}
+	panic(errors.New(fmt.Sprintf("Can not read config.")))
+
 }
