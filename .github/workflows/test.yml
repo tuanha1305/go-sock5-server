@@ -1,11 +1,11 @@
 on: [push, pull_request]
-name: Test
+name: Continuous Integration and Deployment
 jobs:
   test-nocache:
     strategy:
       matrix:
-        go-version: [1.20.x, 1.21.x]
-        os: [ubuntu-latest, macos-latest, windows-latest]
+        go-version: [1.21.x]
+        os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
     - uses: actions/checkout@v3
@@ -23,3 +23,33 @@ jobs:
       with:
         go-version: 1.21.x
     - run: go test ./...
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: [test-nocache, test-cache]  # Ensure deployment occurs only after tests pass
+    if: github.ref == 'refs/heads/main'  # Deploy only for main branch
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v3
+
+    - name: Set up Docker Buildx
+      uses: docker/setup-buildx-action@v1
+
+    - name: Build and push Docker image
+      uses: docker/build-push-action@v2
+      with:
+        push: true
+        tags: tuanha1305/app-sock5:${{ github.sha }}
+        context: .
+
+    - name: Deploy to Production Server
+      uses: appleboy/ssh-action@master
+      with:
+        host: ${{ secrets.IP_SERVER_PRO }}
+        username: ${{ secrets.USER_SSH }}
+        key: ${{ secrets.SSH_KEY_PRO }}
+        script: |
+          docker pull tuanha1305/app-sock5:${{ github.sha }}
+          docker stop sock5-app || true
+          docker rm sock5-app || true
+          docker run -d --name sock5-app -p 8080:8080 tuanha1305/app-sock5:${{ github.sha }}
