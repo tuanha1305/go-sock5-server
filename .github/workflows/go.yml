@@ -46,7 +46,6 @@ jobs:
     - name: Build and push Docker image
       run: |
           docker build . --tag ghcr.io/tuanha1305/go-sock5-server/app-sock5:${{ github.sha }}
-          docker run ghcr.io/tuanha1305/go-sock5-server/app-sock5:${{ github.sha }}
           docker push ghcr.io/tuanha1305/go-sock5-server/app-sock5:${{ github.sha }}
 
     - name: Deploy to Production Server
