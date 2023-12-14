@@ -1,5 +1,5 @@
 [proxy]
 user = "admin"
-ip = "127.0.0.1"
+ip = "0.0.0.0"
 password = "25251325"
 port = 1438
