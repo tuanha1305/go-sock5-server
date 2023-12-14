@@ -1,5 +1,6 @@
 on: [push, pull_request]
 name: Continuous Integration and Deployment
+
 jobs:
   test-nocache:
     strategy:
@@ -35,17 +36,18 @@ jobs:
     - name: Set up Docker Buildx
       uses: docker/setup-buildx-action@v1
 
-    - name: Build and push Docker image
+    - name: Log in to GitHub Container Registry
       uses: docker/login-action@v1
       with:
         registry: ghcr.io
         username: ${{ github.actor }}
         password: ${{ secrets.GIT_TOKEN }}
-    - name: Build the hello-docker Docker image
-        run: |
-            docker build . --tag tuanha1305/app-sock5:${{ github.sha }}
-            docker run tuanha1305/app-sock5:${{ github.sha }}
-            docker push tuanha1305/app-sock5:${{ github.sha }}
+
+    - name: Build and push Docker image
+      run: |
+          docker build . --tag ghcr.io/tuanha1305/go-sock5-server/app-sock5:${{ github.sha }}
+          docker run ghcr.io/tuanha1305/go-sock5-server/app-sock5:${{ github.sha }}
+          docker push ghcr.io/tuanha1305/go-sock5-server/app-sock5:${{ github.sha }}
 
     - name: Deploy to Production Server
       uses: appleboy/ssh-action@master
@@ -54,7 +56,7 @@ jobs:
         username: ${{ secrets.USER_SSH }}
         key: ${{ secrets.SSH_KEY_PRO }}
         script: |
-          docker pull tuanha1305/app-sock5:${{ github.sha }}
+          docker pull ghcr.io/tuanha1305/go-sock5-server/app-sock5:${{ github.sha }}
           docker stop sock5-app || true
           docker rm sock5-app || true
-          docker run -d --name sock5-app -p 8080:8080 tuanha1305/app-sock5:${{ github.sha }}
+          docker run -d --name sock5-app -p 8080:8080 ghcr.io/tuanha1305/go-sock5-server/app-sock5:${{ github.sha }}
