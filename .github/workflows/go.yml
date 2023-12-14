@@ -55,7 +55,7 @@ jobs:
         username: ${{ secrets.USER_SSH }}
         key: ${{ secrets.SSH_KEY_PRO }}
         script: |
-          sudo docker pull ghcr.io/tuanha1305/go-sock5-server/app-sock5:${{ github.sha }}
-          sudo docker stop sock5-app || true
-          sudo docker rm sock5-app || true
-          sudo docker run -d --name sock5-app -p 8080:8080 ghcr.io/tuanha1305/go-sock5-server/app-sock5:${{ github.sha }}
+          docker pull ghcr.io/tuanha1305/go-sock5-server/app-sock5:${{ github.sha }}
+          docker stop sock5-app || true
+          docker rm sock5-app || true
+          docker run -d --name sock5-app -p 8080:8080 ghcr.io/tuanha1305/go-sock5-server/app-sock5:${{ github.sha }}
