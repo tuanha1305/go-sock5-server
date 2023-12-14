@@ -27,7 +27,7 @@ jobs:
   deploy:
     runs-on: ubuntu-latest
     needs: [test-nocache, test-cache]  # Ensure deployment occurs only after tests pass
-    if: github.ref == 'refs/heads/main'  # Deploy only for main branch
+    if: github.ref == 'refs/heads/master'  # Deploy only for master branch
     steps:
     - name: Checkout code
       uses: actions/checkout@v3
