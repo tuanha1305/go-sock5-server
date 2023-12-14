@@ -55,6 +55,7 @@ jobs:
         username: ${{ secrets.USER_SSH }}
         key: ${{ secrets.SSH_KEY_PRO }}
         script: |
+          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
           docker pull ghcr.io/tuanha1305/go-sock5-server/app-sock5:${{ github.sha }}
           docker stop sock5-app || true
           docker rm sock5-app || true
