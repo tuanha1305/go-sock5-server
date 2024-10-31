@@ -1,0 +1,20 @@
+[Unit]
+Description=Go SOCKS5 Server
+After=network.target
+
+[Service]
+Type=simple
+User=nobody
+ExecStart=/opt/go-sock5-server/bin/go-sock5-server -c /opt/go-sock5-server/config/config.toml
+WorkingDirectory=/opt/go-sock5-server
+Restart=on-failure
+RestartSec=5
+StartLimitInterval=60s
+StartLimitBurst=3
+
+# If you want to redirect logs
+StandardOutput=append:/opt/go-sock5-server/logs/output.log
+StandardError=append:/opt/go-sock5-server/logs/error.log
+
+[Install]
+WantedBy=multi-user.target
