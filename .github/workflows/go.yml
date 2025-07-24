@@ -1,4 +1,10 @@
-on: [push, pull_request]
+on:
+  push:
+    branches: [master, main]
+    tags: ['v*']
+  pull_request:
+    branches: [master, main]
+
 name: Continuous Integration and Deployment
 
 jobs:
@@ -9,7 +15,7 @@ jobs:
         os: [ubuntu-latest]
     runs-on: ${{ matrix.os }}
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: actions/setup-go@v4
       with:
         go-version: ${{ matrix.go-version }}
@@ -19,44 +25,102 @@ jobs:
   test-cache:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
     - uses: actions/setup-go@v4
       with:
         go-version: 1.21.x
     - run: go test ./...
 
-  deploy:
+  build:
     runs-on: ubuntu-latest
-    needs: [test-nocache, test-cache]  # Ensure deployment occurs only after tests pass
-    if: github.ref == 'refs/heads/master'  # Deploy only for master branch
+    needs: [test-nocache, test-cache]
+    if: startsWith(github.ref, 'refs/tags/v') || github.ref == 'refs/heads/master' || github.ref == 'refs/heads/main'
+    outputs:
+      version: ${{ steps.get_version.outputs.version }}
     steps:
     - name: Checkout code
-      uses: actions/checkout@v3
-
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v1
-
-    - name: Log in to GitHub Container Registry
-      uses: docker/login-action@v1
+      uses: actions/checkout@v4
+      
+    - name: Set up Go
+      uses: actions/setup-go@v4
       with:
-        registry: ghcr.io
-        username: ${{ github.actor }}
-        password: ${{ secrets.GIT_TOKEN }}
-
-    - name: Build and push Docker image
+        go-version: 1.21.x
+        
+    - name: Get version
+      id: get_version
       run: |
-          docker build . --tag ghcr.io/tuanha1305/go-sock5-server/app-sock5:${{ github.sha }}
-          docker push ghcr.io/tuanha1305/go-sock5-server/app-sock5:${{ github.sha }}
-
-    - name: Deploy to Production Server
-      uses: appleboy/ssh-action@master
+        if [[ $GITHUB_REF == refs/tags/* ]]; then
+          echo "version=${GITHUB_REF#refs/tags/}" >> $GITHUB_OUTPUT
+        else
+          echo "version=${GITHUB_SHA::8}" >> $GITHUB_OUTPUT
+        fi
+        
+    - name: Build binaries
+      run: |
+        mkdir -p dist
+        
+        # Build cho các platform khác nhau
+        GOOS=linux GOARCH=amd64 go build -ldflags="-s -w" -o dist/app-linux-amd64 .
+        GOOS=linux GOARCH=arm64 go build -ldflags="-s -w" -o dist/app-linux-arm64 .
+        GOOS=windows GOARCH=amd64 go build -ldflags="-s -w" -o dist/app-windows-amd64.exe .
+        GOOS=darwin GOARCH=amd64 go build -ldflags="-s -w" -o dist/app-darwin-amd64 .
+        GOOS=darwin GOARCH=arm64 go build -ldflags="-s -w" -o dist/app-darwin-arm64 .
+        
+    - name: Create archives
+      run: |
+        cd dist
+        tar -czf app-linux-amd64.tar.gz app-linux-amd64
+        tar -czf app-linux-arm64.tar.gz app-linux-arm64
+        zip app-windows-amd64.zip app-windows-amd64.exe
+        tar -czf app-darwin-amd64.tar.gz app-darwin-amd64
+        tar -czf app-darwin-arm64.tar.gz app-darwin-arm64
+        
+    - name: Upload build artifacts
+      uses: actions/upload-artifact@v4
       with:
-        host: ${{ secrets.IP_SERVER_PRO }}
-        username: ${{ secrets.USER_SSH }}
-        key: ${{ secrets.SSH_KEY_PRO }}
-        script: |
-          echo ${{ secrets.GITHUB_TOKEN }} | docker login ghcr.io -u ${{ github.actor }} --password-stdin
-          docker pull ghcr.io/tuanha1305/go-sock5-server/app-sock5:${{ github.sha }}
-          docker stop sock5-app || true
-          docker rm sock5-app || true
-          docker run -d --name sock5-app -p 8080:8080 ghcr.io/tuanha1305/go-sock5-server/app-sock5:${{ github.sha }}
+        name: binaries
+        path: dist/*.{tar.gz,zip}
+
+
+
+  release:
+    runs-on: ubuntu-latest
+    needs: [build]
+    if: startsWith(github.ref, 'refs/tags/v')
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+      
+    - name: Download build artifacts
+      uses: actions/download-artifact@v4
+      with:
+        name: binaries
+        path: dist/
+        
+    - name: Generate changelog
+      id: changelog
+      run: |
+        # Tạo changelog đơn giản từ commit messages
+        if git describe --tags --abbrev=0 HEAD^ >/dev/null 2>&1; then
+          PREV_TAG=$(git describe --tags --abbrev=0 HEAD^)
+          echo "## Changelog" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          git log ${PREV_TAG}..HEAD --oneline --pretty=format:"- %s" >> CHANGELOG.md
+        else
+          echo "## Changelog" > CHANGELOG.md
+          echo "" >> CHANGELOG.md
+          echo "- Initial release" >> CHANGELOG.md
+        fi
+        
+    - name: Create Release
+      uses: softprops/action-gh-release@v1
+      with:
+        files: |
+          dist/*.tar.gz
+          dist/*.zip
+        body_path: CHANGELOG.md
+        draft: false
+        prerelease: ${{ contains(github.ref, 'alpha') || contains(github.ref, 'beta') || contains(github.ref, 'rc') }}
+        generate_release_notes: true
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
